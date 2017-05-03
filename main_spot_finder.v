@@ -90,7 +90,7 @@ reg     [7:0]   pixel_value; //8Bit value of currently observed pixel
 //Array that holds all the regions of Interest (ROI) for the spots [ROI_x_Start/ROI_y_Start/ROI_x_End/ROI_y_End]
 //ROI_Start defines the position of the top left corner of the ROI rectangle, ROI_End the bottom right corner
 //Positions can have a maximum value of 649 thats why 10 bits for each value are reserved, Memory for 10 ROIs is declared
-reg [9:0] ROIs_buffer [3:0][num_rois_max-1:0];
+//reg [9:0] ROIs_buffer [3:0][num_rois_max-1:0];
 
 //Buffer variables for ROI
 reg [9:0] ROI_x_Start; 
@@ -142,12 +142,12 @@ always @(posedge clk_in) begin
                 //Iterate through the ROIs already acquired, to check whether current pixel is already in a ROI
                 is_in_roi=0;
                 for (k = 0;k<num_rois ;k=k+1 ) begin
-                        if (pos_x>=ROIs_buffer[0][k] && pos_y>=ROIs_buffer[1][k] && pos_x<=ROIs_buffer[2][k] && pos_y<=ROIs_buffer[3][k]) begin
-                            is_in_roi=1;
-                        end
-//                    if (pos_x>=ROIs_output[40*num_rois +: 10] && pos_y>=ROIs_output[40*num_rois+10 +: 10] && pos_x<=ROIs_output[40*num_rois+20 +: 10] && pos_y<=ROIs_output[40*num_rois+30 +: 10]) begin
-//                        is_in_roi=1;
-//                    end
+//                        if (pos_x>=ROIs_buffer[0][k] && pos_y>=ROIs_buffer[1][k] && pos_x<=ROIs_buffer[2][k] && pos_y<=ROIs_buffer[3][k]) begin
+//                            is_in_roi=1;
+//                        end
+                    if (pos_x>=ROIs_output[40*num_rois +: 10] && pos_y>=ROIs_output[40*num_rois+10 +: 10] && pos_x<=ROIs_output[40*num_rois+20 +: 10] && pos_y<=ROIs_output[40*num_rois+30 +: 10]) begin
+                        is_in_roi=1;
+                    end
                 end
                 
                 if (is_in_roi!=1) begin
@@ -178,11 +178,11 @@ always @(posedge clk_in) begin
             
                     //Write the ROI buffer variables to the ROI_Array
                     
-                        ROIs_buffer[0][num_rois]=ROI_x_Start;
-                        ROIs_buffer[1][num_rois]=ROI_y_Start;
-                        ROIs_buffer[2][num_rois]=ROI_x_End;
-                        ROIs_buffer[3][num_rois]=ROI_y_End;
-//                      ROIs_output[40*num_rois +: 40]={ROI_x_Start,ROI_y_Start,ROI_x_End,ROI_y_End};
+//                        ROIs_buffer[0][num_rois]=ROI_x_Start;
+//                        ROIs_buffer[1][num_rois]=ROI_y_Start;
+//                        ROIs_buffer[2][num_rois]=ROI_x_End;
+//                        ROIs_buffer[3][num_rois]=ROI_y_End;
+                      ROIs_output[40*num_rois +: 40]={ROI_x_Start,ROI_y_Start,ROI_x_End,ROI_y_End};
                       
             
                     //Increase number of found ROIs
@@ -220,9 +220,9 @@ always @(posedge clk_in) begin
                 //Check whether all pixels have been analyzed
                 if(mem_address>cam_kernels_x*cam_lines_y-1 || num_rois==num_rois_max) begin
                     //Copy all ROIs to Output Buffer
-                    for (i = 0;i<num_rois_max ;i=i+1 ) begin
-                        ROIs_output[40*i +: 40]={ROIs_buffer[0][i],ROIs_buffer[1][i],ROIs_buffer[2][i],ROIs_buffer[3][i]};
-                    end
+//                    for (i = 0;i<num_rois_max ;i=i+1 ) begin
+//                        ROIs_output[40*i +: 40]={ROIs_buffer[0][i],ROIs_buffer[1][i],ROIs_buffer[2][i],ROIs_buffer[3][i]};
+//                    end
                     analysis_rdy=1;
                     stateMachine=3;       
                 end
@@ -242,11 +242,11 @@ always @(posedge clk_in) begin
             pixel_index=0;
             
             //reset the ROIs array
-            for (i=0;i<num_rois_max;i=i+1) begin
-                for (k=0;k<4;k=k+1) begin
-                    ROIs_buffer[k][i]=10'b0;
-                end          
-            end
+//            for (i=0;i<num_rois_max;i=i+1) begin
+//                for (k=0;k<4;k=k+1) begin
+//                    ROIs_buffer[k][i]=10'b0;
+//                end          
+//            end
 
             num_rois=0;       
             ROIs_output=num_rois_max*4*10'b0; 
