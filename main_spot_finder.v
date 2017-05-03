@@ -199,8 +199,17 @@ always @(posedge clk_in) begin
             if (pixel_index>=31) begin     
                 // Increment the memory address, kernel_index and line_index
                 mem_address = mem_address + 1;
-                kernel_index = mem_address%cam_kernels_x;
-                line_index=mem_address/cam_kernels_x;
+                
+                //At the end of a line the kernel_index is reset and the line_index is increased by one
+                if(kernel_index==cam_kernels_x-1) begin
+                    kernel_index=0;
+                    line_index=line_index+1;
+                end
+                else begin
+                    kernel_index = kernel_index+1;
+                end                                                              
+                                               
+                
                 
                 // Set StateMachine to initial state
                 stateMachine=0;
