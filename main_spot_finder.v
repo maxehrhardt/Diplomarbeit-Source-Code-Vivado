@@ -120,7 +120,7 @@ reg [9:0] pos_y_max;
 always @(posedge clk_in) begin
     //check for reset
     if(reset == 1) begin
-        stateMachine=3;
+        stateMachine=4;
     end
     else begin
         //Initial state
@@ -189,7 +189,7 @@ always @(posedge clk_in) begin
                     num_rois=num_rois+1;
                     
                     //Jump over the next pixel, because they are definitely in a ROI
-                    pixel_index=pixel_index+ROI_width_x>>1+1;                        
+                    //pixel_index=pixel_index+ROI_width_x>>1+1;                        
                 end
             end
             
@@ -219,11 +219,6 @@ always @(posedge clk_in) begin
                 
                 //Check whether all pixels have been analyzed
                 if(mem_address>cam_kernels_x*cam_lines_y-1 || num_rois==num_rois_max) begin
-                    //Copy all ROIs to Output Buffer
-                    for (i = 0;i<num_rois_max ;i=i+1 ) begin
-                        ROIs_output[40*i +: 40]={ROIs_buffer[0][i],ROIs_buffer[1][i],ROIs_buffer[2][i],ROIs_buffer[3][i]};
-                    end
-                    analysis_rdy=1;
                     stateMachine=3;       
                 end
             end
@@ -233,8 +228,17 @@ always @(posedge clk_in) begin
                 pixel_index=pixel_index+1;
             end
         end
-        //State to wait one clockcycle after analysis is ready before resetting
+        //state to copy the ROIs from buffer to output register
         else if(stateMachine==3) begin
+            //Copy all ROIs to Output Buffer
+            for (i = 0;i<num_rois_max ;i=i+1 ) begin
+                ROIs_output[40*i +: 40]={ROIs_buffer[0][i],ROIs_buffer[1][i],ROIs_buffer[2][i],ROIs_buffer[3][i]};
+            end
+            analysis_rdy=1;
+            stateMachine=4;
+        end
+        //State that resets the analysis
+        else if(stateMachine==4) begin
             stateMachine = 0;        
             mem_address=0;
             kernel_index=0;
@@ -247,7 +251,7 @@ always @(posedge clk_in) begin
                     ROIs_buffer[k][i]=10'b0;
                 end          
             end
-
+    
             num_rois=0;       
             ROIs_output=num_rois_max*4*10'b0; 
             analysis_rdy=0;
@@ -255,6 +259,7 @@ always @(posedge clk_in) begin
             pos_x_max=cam_kernels_x*32-1;
             pos_y_max=cam_lines_y-1;
         end
+        
         
 
         
