@@ -98,7 +98,7 @@ reg [9:0] ROI_y_Start;
 reg [9:0] ROI_x_End;
 reg [9:0] ROI_y_End;
 //Number of ROIs found
-output reg [7:0] num_rois;
+output reg [5:0] num_rois;
 initial num_rois=0;
 //Variable used to indicate whether pixel is in ROI 0 for false, 1 for true
 reg is_in_roi;
@@ -135,8 +135,8 @@ always @(posedge clk_in) begin
         else if(stateMachine ==2) begin
             //Check 1 pixel per clock cycle           
             pos_y=line_index;                        
-            pos_x=kernel_index<<5+pixel_index;             
-            pixel_value=data_in[pixel_index<<3 +: 8];
+            pos_x=kernel_index*32+pixel_index;             
+            pixel_value=data_in[pixel_index*8 +: 8];
             
             if(pixel_value>brightness_threshold) begin
                 //Iterate through the ROIs already acquired, to check whether current pixel is already in a ROI
@@ -189,7 +189,7 @@ always @(posedge clk_in) begin
                     num_rois=num_rois+1;
                     
                     //Jump over the next pixel, because they are definitely in a ROI
-                    //pixel_index=pixel_index+ROI_width_x>>1+1;                        
+                    pixel_index=pixel_index+ROI_width_x>>1+1;                        
                 end
             end
             
