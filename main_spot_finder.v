@@ -98,7 +98,7 @@ reg [9:0] ROI_y_Start;
 reg [9:0] ROI_x_End;
 reg [9:0] ROI_y_End;
 //Number of ROIs found
-output reg [5:0] num_rois;
+output reg [3:0] num_rois;
 initial num_rois=0;
 //Variable used to indicate whether pixel is in ROI 0 for false, 1 for true
 reg is_in_roi;
