@@ -189,7 +189,7 @@ always @(posedge clk_in) begin
                     num_rois=num_rois+1;
                     
                     //Jump over the next pixel, because they are definitely in a ROI
-                    pixel_index=pixel_index+ROI_width_x>>1+1;                        
+                    //pixel_index=pixel_index+ROI_width_x>>1+1;                        
                 end
             end
             
