@@ -135,8 +135,8 @@ always @(posedge clk_in) begin
         else if(stateMachine ==2) begin
             //Check 1 pixel per clock cycle           
             pos_y=line_index;                        
-            pos_x=kernel_index*32+pixel_index;             
-            pixel_value=data_in[8*pixel_index +: 8];
+            pos_x=kernel_index<<5+pixel_index;             
+            pixel_value=data_in[pixel_index<<3 +: 8];
             
             if(pixel_value>brightness_threshold) begin
                 //Iterate through the ROIs already acquired, to check whether current pixel is already in a ROI
