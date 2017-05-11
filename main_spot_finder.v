@@ -24,13 +24,16 @@
     state machine:
     - State 0:  put memory address on block RAM
     - State 1:  waiting state, brings two clock cycles between aplplying the mem address and reading the data
-    - State 3:  read data from block RAM and analyze the data
+    - State 2:  read data from block RAM and analyze the data
+    - State 3:  write the ROIs from internal buffer to output register
+    - State 4:  resets all the variables
 */
 //////////////////////////////////////////////////////////////////////////////////
 
 
 module main_spot_finder(
     clk_in,
+    PAR_CLK,
     data_in,
     cam_kernels_x,
     cam_lines_y,
@@ -38,17 +41,37 @@ module main_spot_finder(
     mem_address,
     num_rois,
     ROIs_output,
-    analysis_rdy
+    analysis_rdy,
+    stateMachine,
+    image_saved,
+    //Used for debugging
+    pixel_value,
+    kernel_index,
+    line_index,
+    is_in_roi,
+    pixel_index,
+    brightness_threshold,
+    ROI_width_x,
+    ROI_height_y,
+    num_rois_max
+    
+    
 );
 
 //### parameters
-parameter brightness_threshold=127;
-parameter ROI_width_x=7;
-parameter ROI_height_y=7;
-parameter num_rois_max=10;
+//parameter brightness_threshold=127;
+//parameter ROI_width_x=7;
+//parameter ROI_height_y=7;
+//parameter num_rois_max=10;
+input wire [7:0] brightness_threshold;
+input wire [15:0] ROI_width_x;
+input wire [16:0] ROI_height_y;
+input wire [7:0] num_rois_max;
 
 //### interface 
 input   wire            clk_in;
+input   wire            PAR_CLK;
+
 input   wire            reset;
 
 input   wire    [255:0] data_in;
@@ -57,25 +80,29 @@ input   wire    [15:0]  cam_kernels_x;
 
 input   wire    [15:0]  cam_lines_y;
 
+input   wire            image_saved; //inidcates if a full image is saved to the BRAM
+
 output  reg     [13:0]  mem_address;
 initial                 mem_address=0;
 
-output  reg     [num_rois_max*4*10-1:0] ROIs_output;
+//output  reg     [num_rois_max*4*10-1:0] ROIs_output;
+output  reg     [255*4*10-1:0] ROIs_output;
 
 output  reg             analysis_rdy;   //Is set to 1 when complete analysis of 1 image is completed
 initial                 analysis_rdy=0;
 
-//### internal register
-reg     [7:0]   stateMachine;
-initial         stateMachine = 3;
 
-reg     [13:0]  kernel_index; 
+//### internal register
+output reg     [7:0]   stateMachine;
+initial         stateMachine = 4;
+
+output reg     [13:0]  kernel_index; 
 initial         kernel_index=0;
 
-reg     [13:0]  line_index; 
+output reg     [13:0]  line_index; 
 initial         line_index=0;
 
-reg     [5:0]   pixel_index; //Used to index the pixel in the kernel that is currently observed; Value=0...31, but more bits where used to avoid errors due to overflow
+output reg     [5:0]   pixel_index; //Used to index the pixel in the kernel that is currently observed; Value=0...31, but more bits where used to avoid errors due to overflow
 initial         pixel_index=0;
 
 reg     [7:0]   i;  //Loop iterator
@@ -83,7 +110,7 @@ initial         i=0;
 reg     [7:0]   k;  //Loop iterator
 initial         k=0;
 
-reg     [7:0]   pixel_value; //8Bit value of currently observed pixel
+output reg     [7:0]   pixel_value; //8Bit value of currently observed pixel
 
 
 
@@ -98,10 +125,10 @@ reg [9:0] ROI_y_Start;
 reg [9:0] ROI_x_End;
 reg [9:0] ROI_y_End;
 //Number of ROIs found
-output reg [3:0] num_rois;
+output reg [7:0] num_rois;
 initial num_rois=0;
 //Variable used to indicate whether pixel is in ROI 0 for false, 1 for true
-reg is_in_roi;
+output reg is_in_roi;
 initial is_in_roi=0;
 
 //Position of currently observed pixel in image, [0/0] is in left top corner, x horizontal, y vertical
@@ -115,9 +142,9 @@ reg [9:0] pos_y_max;
 //initial pos_y_max=cam_lines_y-1;
 
 
-
 //### code start
 always @(posedge clk_in) begin
+    
     //check for reset
     if(reset == 1) begin
         stateMachine=4;
@@ -136,7 +163,7 @@ always @(posedge clk_in) begin
             //Check 1 pixel per clock cycle           
             pos_y=line_index;                        
             pos_x=kernel_index*32+pixel_index;             
-            pixel_value=data_in[pixel_index*8 +: 8];
+            pixel_value=data_in[8*pixel_index +: 8];
             
             if(pixel_value>brightness_threshold) begin
                 //Iterate through the ROIs already acquired, to check whether current pixel is already in a ROI
@@ -189,14 +216,18 @@ always @(posedge clk_in) begin
                     num_rois=num_rois+1;
                     
                     //Jump over the next pixel, because they are definitely in a ROI
-                    pixel_index=pixel_index+ROI_width_x>>1+1;                        
+                    //pixel_index=pixel_index+ROI_width_x>>1+1;                        
                 end
             end
             
             
             
+            
+            if (num_rois>=num_rois_max) begin
+                stateMachine=3;
+            end
             //Check whether all pixels of current kernel have been observed
-            if (pixel_index>=31) begin     
+            else if (pixel_index>=31) begin     
                 // Increment the memory address, kernel_index and line_index
                 mem_address = mem_address + 1;
                 
@@ -218,7 +249,7 @@ always @(posedge clk_in) begin
                 pixel_index=0;
                 
                 //Check whether all pixels have been analyzed
-                if(mem_address>cam_kernels_x*cam_lines_y-1 || num_rois==num_rois_max) begin
+                if(mem_address>cam_kernels_x*cam_lines_y-1) begin
                     stateMachine=3;       
                 end
             end
@@ -226,7 +257,7 @@ always @(posedge clk_in) begin
                 //Increase pixel_index and stay in the state
                 stateMachine=2;
                 pixel_index=pixel_index+1;
-            end
+            end           
         end
         //state to copy the ROIs from buffer to output register
         else if(stateMachine==3) begin
@@ -239,25 +270,32 @@ always @(posedge clk_in) begin
         end
         //State that resets the analysis
         else if(stateMachine==4) begin
-            stateMachine = 0;        
-            mem_address=0;
-            kernel_index=0;
-            line_index=0;
-            pixel_index=0;
             
-            //reset the ROIs array
-            for (i=0;i<num_rois_max;i=i+1) begin
-                for (k=0;k<4;k=k+1) begin
-                    ROIs_buffer[k][i]=10'b0;
-                end          
+            if (image_saved==1) begin
+                stateMachine = 0;        
+                mem_address=0;
+                kernel_index=0;
+                line_index=0;
+                pixel_index=0;
+                
+                //reset the ROIs array
+                for (i=0;i<num_rois_max;i=i+1) begin
+                    for (k=0;k<4;k=k+1) begin
+                        ROIs_buffer[k][i]=10'b0;
+                    end          
+                end
+        
+                num_rois=0;       
+                ROIs_output=num_rois_max*4*10'b0; 
+                analysis_rdy=0;
+                
+                pos_x_max=cam_kernels_x*32-1;
+                pos_y_max=cam_lines_y-1;
             end
-    
-            num_rois=0;       
-            ROIs_output=num_rois_max*4*10'b0; 
-            analysis_rdy=0;
-            
-            pos_x_max=cam_kernels_x*32-1;
-            pos_y_max=cam_lines_y-1;
+            else begin
+                stateMachine=4;
+            end
+
         end
         
         
@@ -266,7 +304,5 @@ always @(posedge clk_in) begin
     end
 
 end
-
-
 
 endmodule
